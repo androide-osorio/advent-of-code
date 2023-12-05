@@ -2,25 +2,32 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-fn parse_cards_file(file_path: &str) -> Vec<String> {
+pub mod scratchcards;
+
+fn parse_cards_file(file_path: &str) -> Vec<scratchcards::ScratchCard> {
     let file = File::open(file_path).expect("Failed to open file");
     let reader = BufReader::new(file);
-    let mut cards: Vec<String> = Vec::new();
+    let mut cards: Vec<scratchcards::ScratchCard> = Vec::new();
 
     for line in reader.lines() {
         if let Ok(line) = line {
-            println!("{}", line);
-            cards.push(line);
+            cards.push(scratchcards::ScratchCard::from_card_line(&line));
         }
     }
     cards
 }
 
-fn part_1(scratchcards: Vec<String>) {
+fn part_1(scratchcards: Vec<scratchcards::ScratchCard>) {
     println!("Part 1!");
+    let total_points = scratchcards
+        .iter()
+        .map(|card| card.get_points())
+        .fold(0, |sum, points| sum + points);
+
+    println!("Total points: {}", total_points);
 }
 
-fn part_2(scratchcards: Vec<String>) {
+fn part_2(scratchcards: Vec<scratchcards::ScratchCard>) {
     println!("Part 2!");
 }
 
