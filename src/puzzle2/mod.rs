@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::env;
+use std::path::Path;
 
 pub mod game;
 
@@ -41,20 +41,15 @@ fn part_2(games: Vec<game::Game>) {
     println!("All game powers: {}", all_game_powers);
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
+pub fn run(part: u8) {
+    let mod_path = file!();
+    let current_dir = Path::new(mod_path).parent().unwrap();
+    let file_path = current_dir.join("data.txt");
+    let games = parse_game_file(file_path.as_os_str().to_str().unwrap());
 
-    if args.len() < 2 {
-        println!("Please provide a command line argument (part1 or part2)");
-        return;
-    }
-
-    let file_path = "./data/games.txt";
-    let games = parse_game_file(file_path);
-
-    match args[1].as_str() {
-        "part1" => part_1(games),
-        "part2" => part_2(games),
+    match part {
+        1 => part_1(games),
+        2 => part_2(games),
         _ => println!("Invalid command line argument"),
     }
 }

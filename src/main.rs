@@ -1,5 +1,7 @@
 use clap::Parser;
 
+pub mod puzzle2;
+
 /// The advent of code solutions
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -17,7 +19,8 @@ fn main() {
     let name = cli.puzzle;
     let puzzle_part = cli.part;
 
-    println!("Puzzle to run: {name}");
-    println!("Value for part: {}", puzzle_part);
-    println!("Hello, world!");
+    match name.as_str() {
+        "puzzle2" => puzzle2::run(puzzle_part),
+        _ => println!("Invalid puzzle name"),
+    }
 }
