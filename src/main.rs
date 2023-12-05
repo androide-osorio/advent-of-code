@@ -1,6 +1,7 @@
 use clap::Parser;
 
 pub mod puzzle2;
+pub mod puzzle4;
 
 /// The advent of code solutions
 #[derive(Parser, Debug)]
@@ -21,6 +22,7 @@ fn main() {
 
     match name.as_str() {
         "puzzle2" => puzzle2::run(puzzle_part),
+        "puzzle4" => puzzle4::run(puzzle_part),
         _ => println!("Invalid puzzle name"),
     }
 }
