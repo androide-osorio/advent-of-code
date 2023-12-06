@@ -17,14 +17,20 @@ impl ScratchCard {
 		}
 	}
 
-	pub fn get_points(&self) -> u32 {
+	pub fn get_matches(&self) -> u32 {
 		let intersection = self.winning_numbers.intersection(&self.own_numbers);
 		let intersection_count = intersection.count() as u32;
 
-		if intersection_count == 0 {
+		intersection_count
+	}
+
+	pub fn get_points(&self) -> u32 {
+		let matches = self.get_matches();
+
+		if matches == 0 {
 			return 0;
 		}
-		let power = 2u32.pow(intersection_count - 1);
+		let power = 2u32.pow(matches - 1);
 		power
 	}
 

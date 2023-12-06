@@ -27,8 +27,16 @@ fn part_1(scratchcards: Vec<scratchcards::ScratchCard>) {
     println!("Total points: {}", total_points);
 }
 
-fn part_2(scratchcards: Vec<scratchcards::ScratchCard>) {
+fn part_2(cards: Vec<scratchcards::ScratchCard>) {
     println!("Part 2!");
+    let mut counts = vec![1u32; cards.len()];
+    for i in 0..cards.len() {
+        for j in 0..(cards[i].get_matches() as usize) {
+            counts[(i + j + 1) as usize] += counts[i];
+        }
+    }
+
+    println!("Total points: {}", counts.iter().sum::<u32>());
 }
 
 pub fn run(part: u8) {
