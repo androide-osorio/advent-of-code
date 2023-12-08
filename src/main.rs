@@ -3,6 +3,7 @@ use clap::Parser;
 pub mod puzzle2;
 pub mod puzzle4;
 pub mod puzzle6;
+pub mod puzzle7;
 
 /// The advent of code solutions
 #[derive(Parser, Debug)]
@@ -25,6 +26,7 @@ fn main() {
         "puzzle2" => puzzle2::run(puzzle_part),
         "puzzle4" => puzzle4::run(puzzle_part),
         "puzzle6" => puzzle6::run(puzzle_part),
+        "puzzle7" => puzzle7::run(puzzle_part),
         _ => println!("Invalid puzzle name"),
     }
 }
