@@ -1,4 +1,4 @@
-pub mod game;
+use day2::game;
 
 fn parse_game_file(game_data: &str) -> Vec<game::Game> {
     let mut games: Vec<game::Game> = Vec::new();

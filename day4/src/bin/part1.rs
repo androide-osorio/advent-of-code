@@ -1,4 +1,4 @@
-pub mod scratchcards;
+use day4::scratchcards;
 
 fn parse_cards_file(data: &str) -> Vec<scratchcards::ScratchCard> {
     let mut cards: Vec<scratchcards::ScratchCard> = Vec::new();

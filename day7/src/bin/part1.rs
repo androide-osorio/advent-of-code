@@ -1,4 +1,4 @@
-pub mod camelcards;
+use day7::camelcards;
 
 use std::collections::HashMap;
 use camelcards::Hand;
