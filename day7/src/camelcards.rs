@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
+use itertools::Itertools;
+
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Card(u8);
 
@@ -46,7 +48,7 @@ impl From<Card> for usize {
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub enum HandTypes {
+pub enum HandType {
     HighCard,
     OnePair,
     TwoPair,
@@ -59,81 +61,51 @@ pub enum HandTypes {
 #[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
 pub struct Hand {
     pub cards: Vec<Card>,
-    pub hand_type: HandTypes,
 }
 
 impl Hand {
     pub fn new(cards: Vec<Card>) -> Hand {
-        let hand_type = Hand::classify(&cards);
         Hand {
             cards: cards,
-            hand_type: hand_type,
         }
     }
 
     pub fn from_str(hand: &str) -> Hand {
-        let mut cards: Vec<Card> = Vec::new();
-        for card in hand.chars() {
-            let rank = Card::from_str(&card.to_string());
-            cards.push(rank);
-        }
+        let cards = hand
+            .chars()
+            .map(|char| Card::from_str(&char.to_string()))
+            .collect();
+
         Hand::new(cards)
     }
 
     pub fn get_ordered_cards(&self) -> Vec<Card> {
-        let mut ordered_cards = self.cards.clone();
-        ordered_cards.sort();
-        ordered_cards.reverse();
-        ordered_cards
+        self.cards.clone().into_iter().sorted().rev().collect()
     }
 
-    fn classify(cards: &Vec<Card>) -> HandTypes {
-        let mut ordered_cards = cards.clone();
-        ordered_cards.sort();
-        ordered_cards.reverse();
+    pub fn get_score(&self) -> HandType {
+        let cards = self.cards.clone();
+        let counts = cards.into_iter().counts();
+        let fingerprints = counts.values().sorted().join("");
 
-        let mut indexes: Vec<u8> = vec![0; 13];
-
-        for card in ordered_cards.iter() {
-            let rank_value = u8::from(*card) - 2;
-            indexes[rank_value as usize] += 1;
-        }
-
-        let mut counts: Vec<(u8, Card)> = indexes
-            .into_iter()
-            .enumerate()
-            .map(|(i, count)| (count as u8, Card::from(i as u8 + 2)))
-            .collect();
-        counts.sort();
-        counts.reverse();
-
-        let (count, _rank) = counts[0];
-        return match count {
-            5 => HandTypes::FiveOfAKind,
-            4 => HandTypes::FourOfAKind,
-            3 => {
-                if counts[1].0 == 2 {
-                    return HandTypes::FullHouse;
-                } else {
-                    return HandTypes::ThreeOfAKind;
-                }
-            }
-            2 => {
-                if counts[1].0 == 2 {
-                    return HandTypes::TwoPair;
-                } else {
-                    return HandTypes::OnePair;
-                }
-            }
-            1 => HandTypes::HighCard,
+        match fingerprints.as_str() {
+            "5" => HandType::FiveOfAKind,
+            "14" => HandType::FourOfAKind,
+            "23" => HandType::FullHouse,
+            "113" => HandType::ThreeOfAKind,
+            "122" => HandType::TwoPair,
+            "1112" => HandType::OnePair,
+            "11111" => HandType::HighCard,
             _ => panic!("Invalid card count"),
-        };
+        }
     }
 }
 
 impl Ord for Hand {
     fn cmp(&self, other: &Hand) -> Ordering {
-        let hand_type_cmp = self.hand_type.cmp(&other.hand_type);
+        let type1 = self.get_score();
+        let type2 = other.get_score();
+        let hand_type_cmp = type1.cmp(&type2);
         if hand_type_cmp != Ordering::Equal {
             return hand_type_cmp;
         }
@@ -156,7 +128,6 @@ impl Hash for Hand {
         for card in &self.cards {
             card.hash(state);
         }
-        self.hand_type.hash(state);
     }
 }
 
@@ -180,27 +151,27 @@ mod tests {
     }
 
     #[test]
-    fn test_hand_classify() {
+    fn test_hand_get_score() {
         let hand = Hand::from_str("23456");
-        assert_eq!(hand.hand_type, HandTypes::HighCard);
+        assert_eq!(hand.get_score(), HandType::HighCard);
 
         let hand = Hand::from_str("22222");
-        assert_eq!(hand.hand_type, HandTypes::FiveOfAKind);
+        assert_eq!(hand.get_score(), HandType::FiveOfAKind);
 
         let hand = Hand::from_str("22223");
-        assert_eq!(hand.hand_type, HandTypes::FourOfAKind);
+        assert_eq!(hand.get_score(), HandType::FourOfAKind);
 
         let hand = Hand::from_str("22233");
-        assert_eq!(hand.hand_type, HandTypes::FullHouse);
+        assert_eq!(hand.get_score(), HandType::FullHouse);
 
         let hand = Hand::from_str("22234");
-        assert_eq!(hand.hand_type, HandTypes::ThreeOfAKind);
+        assert_eq!(hand.get_score(), HandType::ThreeOfAKind);
 
         let hand = Hand::from_str("22334");
-        assert_eq!(hand.hand_type, HandTypes::TwoPair);
+        assert_eq!(hand.get_score(), HandType::TwoPair);
 
         let hand = Hand::from_str("22345");
-        assert_eq!(hand.hand_type, HandTypes::OnePair);
+        assert_eq!(hand.get_score(), HandType::OnePair);
     }
 
     #[test]
