@@ -1,49 +1,21 @@
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
-
 use itertools::Itertools;
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub struct Card(u8);
+pub type CardValueMap = HashMap<char, u8>;
 
-impl Card {
-    pub fn from(value: u8) -> Card {
-        if value < 2 || value > 14 {
-            panic!("Invalid rank value");
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub struct Hand {
+    pub original: String,
+    pub values: Vec<u8>,
+}
+
+impl Hand {
+    pub fn from_str(hand: &str, card_map: &CardValueMap) -> Hand {
+        let values = hand.chars().map(|c| *card_map.get(&c).unwrap()).collect();
+        Hand {
+            original: hand.to_string(),
+            values,
         }
-        Card(value)
-    }
-
-    pub fn from_str(value: &str) -> Card {
-        let rank = match value {
-            "2" => 2,
-            "3" => 3,
-            "4" => 4,
-            "5" => 5,
-            "6" => 6,
-            "7" => 7,
-            "8" => 8,
-            "9" => 9,
-            "T" => 10,
-            "J" => 11,
-            "Q" => 12,
-            "K" => 13,
-            "A" => 14,
-            _ => panic!("Invalid rank value"),
-        };
-        Card(rank)
-    }
-}
-
-impl From<Card> for u8 {
-    fn from(rank: Card) -> u8 {
-        rank.0
-    }
-}
-
-impl From<Card> for usize {
-    fn from(rank: Card) -> usize {
-        rank.0 as usize
     }
 }
 
@@ -58,76 +30,48 @@ pub enum HandType {
     FiveOfAKind,
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
-pub struct Hand {
-    pub cards: Vec<Card>,
+pub struct Game {
+    pub hands: HashMap<String, u32>,
+    pub card_map: CardValueMap,
+    pub calc_hand_strength: fn(&Hand, &CardValueMap) -> HandType,
 }
 
-impl Hand {
-    pub fn new(cards: Vec<Card>) -> Hand {
-        Hand {
-            cards: cards,
+impl Game {
+    pub fn new(
+        hands: HashMap<String, u32>,
+        card_map: CardValueMap,
+        calc_hand_strength: fn(&Hand, &CardValueMap) -> HandType,
+    ) -> Game {
+        Game {
+            hands,
+            card_map,
+            calc_hand_strength,
         }
     }
-
-    pub fn from_str(hand: &str) -> Hand {
-        let cards = hand
-            .chars()
-            .map(|char| Card::from_str(&char.to_string()))
-            .collect();
-
-        Hand::new(cards)
+    pub fn get_winning_for_hand(&self, hand: &Hand) -> Option<&u32> {
+        let str_hand = hand.original.clone();
+        self.hands.get(&str_hand)
     }
 
-    pub fn get_ordered_cards(&self) -> Vec<Card> {
-        self.cards.clone().into_iter().sorted().rev().collect()
-    }
+    pub fn get_sorted_hands(&self) -> Vec<Hand> {
+        self.hands
+            .keys()
+            .cloned()
+            .into_iter()
+            .map(|hand| Hand::from_str(&*hand, &self.card_map))
+            .sorted_by(|h1, h2| {
+                let h1_type = (self.calc_hand_strength)(h1, &self.card_map);
+                let h2_type = (self.calc_hand_strength)(h2, &self.card_map);
+                let h1_vals = h1.values.clone();
+                let h2_vals = h2.values.clone();
 
-    pub fn get_score(&self) -> HandType {
-        let cards = self.cards.clone();
-        let counts = cards.into_iter().counts();
-        let fingerprints = counts.values().sorted().join("");
+                if h1_type == h2_type {
+                    return h1_vals.cmp(&h2_vals);
+                }
 
-        match fingerprints.as_str() {
-            "5" => HandType::FiveOfAKind,
-            "14" => HandType::FourOfAKind,
-            "23" => HandType::FullHouse,
-            "113" => HandType::ThreeOfAKind,
-            "122" => HandType::TwoPair,
-            "1112" => HandType::OnePair,
-            "11111" => HandType::HighCard,
-            _ => panic!("Invalid card count"),
-        }
-    }
-}
-
-impl Ord for Hand {
-    fn cmp(&self, other: &Hand) -> Ordering {
-        let type1 = self.get_score();
-        let type2 = other.get_score();
-        let hand_type_cmp = type1.cmp(&type2);
-        if hand_type_cmp != Ordering::Equal {
-            return hand_type_cmp;
-        }
-
-        let self_cards = self.cards.clone();
-        let other_cards = other.cards.clone();
-
-        for (self_card, other_card) in self_cards.iter().zip(other_cards.iter()) {
-            let card_cmp = self_card.cmp(&other_card);
-            if card_cmp != Ordering::Equal {
-                return card_cmp;
-            }
-        }
-        Ordering::Equal
-    }
-}
-
-impl Hash for Hand {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        for card in &self.cards {
-            card.hash(state);
-        }
+                return h1_type.cmp(&h2_type);
+            })
+            .collect()
     }
 }
 
@@ -137,63 +81,51 @@ mod tests {
 
     #[test]
     fn test_hand_from_str() {
-        let hand = Hand::from_str("23456");
-        assert_eq!(
-            hand.cards,
-            vec![
-                Card::from(2),
-                Card::from(3),
-                Card::from(4),
-                Card::from(5),
-                Card::from(6)
-            ]
-        );
+        let card_map: CardValueMap = [('A', 1), ('B', 2), ('C', 3)].iter().cloned().collect();
+
+        let hand = Hand::from_str("ABC", &card_map);
+
+        assert_eq!(hand.original, "ABC");
+        assert_eq!(hand.values, vec![1, 2, 3]);
     }
 
     #[test]
-    fn test_hand_get_score() {
-        let hand = Hand::from_str("23456");
-        assert_eq!(hand.get_score(), HandType::HighCard);
+    fn test_get_winning_for_hand() {
+        let hands: HashMap<String, u32> = [("ABC".to_string(), 1), ("DEF".to_string(), 2)]
+            .iter()
+            .cloned()
+            .collect();
 
-        let hand = Hand::from_str("22222");
-        assert_eq!(hand.get_score(), HandType::FiveOfAKind);
+        let card_map: CardValueMap = [('A', 1), ('B', 2), ('C', 3)].iter().cloned().collect();
 
-        let hand = Hand::from_str("22223");
-        assert_eq!(hand.get_score(), HandType::FourOfAKind);
+        let game = Game::new(hands, card_map, |_, _| HandType::HighCard);
 
-        let hand = Hand::from_str("22233");
-        assert_eq!(hand.get_score(), HandType::FullHouse);
+        let hand = Hand::from_str("ABC", &card_map);
+        let winning = game.get_winning_for_hand(&hand);
 
-        let hand = Hand::from_str("22234");
-        assert_eq!(hand.get_score(), HandType::ThreeOfAKind);
-
-        let hand = Hand::from_str("22334");
-        assert_eq!(hand.get_score(), HandType::TwoPair);
-
-        let hand = Hand::from_str("22345");
-        assert_eq!(hand.get_score(), HandType::OnePair);
+        assert_eq!(winning, Some(&1));
     }
 
     #[test]
-    fn test_hands_ordering() {
-        let hand1 = Hand::from_str("23456");
-        let hand2 = Hand::from_str("23456");
-        assert_eq!(hand1, hand2);
+    fn test_get_sorted_hands() {
+        let hands: HashMap<String, u32> = [
+            ("ABC".to_string(), 1),
+            ("DEF".to_string(), 2),
+            ("GHI".to_string(), 3),
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
-        let hand1 = Hand::from_str("AAAAA");
-        let hand2 = Hand::from_str("TTT98");
-        assert!(hand1 > hand2);
+        let card_map: CardValueMap = [('A', 1), ('B', 2), ('C', 3)].iter().cloned().collect();
 
-        let hand1 = Hand::from_str("AAAAA");
-        let hand2 = Hand::from_str("TTTTT");
-        assert!(hand1 > hand2);
+        let game = Game::new(hands, card_map, |_, _| HandType::HighCard);
 
-        let hand1 = Hand::from_str("33332");
-        let hand2 = Hand::from_str("2AAAA");
-        assert!(hand1 > hand2);
+        let sorted_hands = game.get_sorted_hands();
 
-        let hand1 = Hand::from_str("77788");
-        let hand2 = Hand::from_str("77888");
-        assert!(hand1 < hand2);
+        assert_eq!(sorted_hands.len(), 3);
+        assert_eq!(sorted_hands[0].original, "ABC");
+        assert_eq!(sorted_hands[1].original, "DEF");
+        assert_eq!(sorted_hands[2].original, "GHI");
     }
 }
